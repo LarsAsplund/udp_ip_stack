@@ -28,7 +28,6 @@
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
-use ieee.std_logic_unsigned.all;
 use work.arp_types.all;
  
 ENTITY arp_STORE_tb IS

@@ -1,13 +1,13 @@
 ----------------------------------------------------------------------------------
--- Company: 
+-- Company:
 -- Engineer:            Peter Fall
--- 
--- Create Date:    12:00:04 05/31/2011 
--- Design Name: 
--- Module Name:    arp_STORE_br - Behavioral 
--- Project Name: 
--- Target Devices: 
--- Tool versions: 
+--
+-- Create Date:    12:00:04 05/31/2011
+-- Design Name:
+-- Module Name:    arp_STORE_br - Behavioral
+-- Project Name:
+-- Target Devices:
+-- Tool versions:
 -- Description:
 --              ARP storage table using block ram with lookup based on IP address
 --              implements upto 255 entries with sequential search
@@ -16,17 +16,16 @@
 --              store may take a number of cycles and the request is latched
 --              lookup may take a number of cycles. Assumes that request signals remain valid during lookup
 --
--- Dependencies: 
+-- Dependencies:
 --
--- Revision: 
+-- Revision:
 -- Revision 0.01 - File Created
--- Additional Comments: 
+-- Additional Comments:
 --
 ----------------------------------------------------------------------------------
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
-use ieee.std_logic_unsigned.all;
 use work.arp_types.all;
 
 entity arp_STORE_br is
@@ -62,7 +61,7 @@ architecture Behavioral of arp_STORE_br is
 
   -- state variables
   signal ip_ram          : ip_ram_t;     -- will be implemented as block ram
-  signal mac_ram         : mac_ram_t;    -- will be implemented as block ram     
+  signal mac_ram         : mac_ram_t;    -- will be implemented as block ram
   signal st_state        : st_state_t;
   signal next_write_addr : addr_t;       -- where to make the next write
   signal num_entries     : addr_t;       -- number of entries in the store
@@ -158,7 +157,7 @@ begin
         set_next_read_addr <= INCR;
         next_st_state      <= SEARCH;
         set_st_state       <= '1';
-        
+
       when SEARCH =>
         read_result_int.status                                    <= read_status(SEARCHING, mode);
         -- check if have a match at this entry
@@ -206,7 +205,7 @@ begin
           next_st_state <= IDLE;
           set_st_state  <= '1';
         end if;
-        
+
     end case;
   end process;
 
@@ -289,7 +288,7 @@ begin
           when RST  => next_read_addr                                          <= 0;
           when INCR => if next_read_addr < MAX_ARP_ENTRIES then next_read_addr <= next_read_addr + 1; else next_read_addr <= 0; end if;
         end case;
-        
+
       end if;
     end if;
   end process;
