@@ -26,12 +26,15 @@
 -- to guarantee that the testbench will bind correctly to the post-implementation 
 -- simulation model.
 --------------------------------------------------------------------------------
+library vunit_lib;
+context vunit_lib.vunit_context;
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.arp_types.all;
 
 entity arpv2_tb is
+	generic (runner_cfg : string := runner_cfg_default);
 end arpv2_tb;
 
 architecture behavior of arpv2_tb is
@@ -152,6 +155,7 @@ begin
   -- Stimulus process
   stim_proc : process
   begin
+	test_runner_setup(runner, runner_cfg);
     -- hold reset state for 100 ns.
     wait for 100 ns;
 
@@ -1128,7 +1132,8 @@ begin
     
 
     report "--- end of tests ---";
-    wait;
+	test_runner_cleanup(runner);
+	wait;
   end process;
 
 end;

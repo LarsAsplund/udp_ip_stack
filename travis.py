@@ -7,6 +7,6 @@ def call(cmd):
     check_call(cmd, shell=True)
 
 if BUILD_NAME == "ACCEPTANCE":
-    call('python run.py')
+    call('python run.py -p2')
 else:
     raise ValueError(BUILD_NAME)

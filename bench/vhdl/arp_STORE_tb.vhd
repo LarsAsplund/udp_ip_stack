@@ -25,12 +25,15 @@
 -- to guarantee that the testbench will bind correctly to the post-implementation 
 -- simulation model.
 --------------------------------------------------------------------------------
+library vunit_lib;
+context vunit_lib.vunit_context;
 library IEEE;
 use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.arp_types.all;
  
 ENTITY arp_STORE_tb IS
+	generic (runner_cfg : string := runner_cfg_default);
 END arp_STORE_tb;
  
 ARCHITECTURE behavior OF arp_STORE_tb IS 
@@ -101,6 +104,7 @@ BEGIN
    -- Stimulus process
    stim_proc: process
    begin	
+		test_runner_setup(runner, runner_cfg);
 		read_req.req <= '0';
 		read_req.ip <= (others => '0');
 		write_req.req <= '0';
@@ -377,6 +381,7 @@ BEGIN
 		assert read_result.status = IDLE							report "T12.5: expected IDLE";
 
 		report "--- end of tests ---";
+		test_runner_cleanup(runner);
       wait;
    end process;
 

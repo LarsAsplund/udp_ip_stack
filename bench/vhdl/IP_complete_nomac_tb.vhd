@@ -25,6 +25,8 @@
 -- to guarantee that the testbench will bind correctly to the post-implementation 
 -- simulation model.
 --------------------------------------------------------------------------------
+library vunit_lib;
+context vunit_lib.vunit_context;
 LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
@@ -33,6 +35,7 @@ use work.ipv4_types.all;
 use work.arp_types.all;
  
 ENTITY IP_complete_nomac_tb IS
+	generic (runner_cfg : string := runner_cfg_default);
 END IP_complete_nomac_tb;
  
 ARCHITECTURE behavior OF IP_complete_nomac_tb IS 
@@ -147,6 +150,7 @@ BEGIN
    -- Stimulus process
    stim_proc: process
    begin		
+	  test_runner_setup(runner, runner_cfg);
       -- hold reset state for 100 ns.
       wait for 80 ns;	
 
@@ -431,6 +435,7 @@ BEGIN
 
 
 		report "-- end of tests --";
+		test_runner_cleanup(runner);
 
       wait;
    end process;
