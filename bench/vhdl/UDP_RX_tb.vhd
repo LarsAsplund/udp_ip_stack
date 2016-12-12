@@ -242,4 +242,3 @@ begin
   end process;
 
 end;
--- vunit_pragma run_all_in_same_sim
