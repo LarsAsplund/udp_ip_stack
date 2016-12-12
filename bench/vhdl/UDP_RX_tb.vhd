@@ -320,17 +320,19 @@ begin
   begin
     test_runner_setup(runner, runner_cfg);
 
-    reset_uut;
-
-    test_reset_conditions;
-
-    test_that_one_packet_can_be_received;
-
-    test_that_second_packet_can_be_received;
-
-    test_that_non_udp_packets_are_rejected;
-
-    test_that_a_udp_packet_can_be_received_after_a_non_udp_packet;
+    while test_suite loop
+      if run("Test reset conditions") then
+        reset_uut;
+        test_reset_conditions;
+      elsif run("Test that one packet can be received") then
+        test_that_one_packet_can_be_received;
+      elsif run("Test that many packets can be received") then
+        test_that_second_packet_can_be_received;
+      elsif run("Test that UDP and non-UDP packets can be mixed") then
+        test_that_non_udp_packets_are_rejected;
+        test_that_a_udp_packet_can_be_received_after_a_non_udp_packet;
+      end if;
+    end loop;
 
     report "--- end of tests ---";
     test_runner_cleanup(runner);
@@ -338,3 +340,4 @@ begin
   end process;
 
 end;
+-- vunit_pragma run_all_in_same_sim
