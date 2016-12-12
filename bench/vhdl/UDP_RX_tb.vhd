@@ -208,8 +208,8 @@ begin
     test_runner_setup(runner, runner_cfg);
 
     while test_suite loop
+      reset_uut;
       if run("Test reset conditions") then
-        reset_uut;
         test_reset_conditions;
       elsif run("Test that one packet can be received") then
         test_that_packet_can_be_received(
@@ -217,9 +217,15 @@ begin
           destination_port => X"8724", data => (16#41#, 16#45#, 16#49#));
       elsif run("Test that many packets can be received") then
         test_that_packet_can_be_received(
+          ip_address => X"C0A80501", source_port => X"1498",
+          destination_port => X"8724", data => (16#41#, 16#45#, 16#49#));
+        test_that_packet_can_be_received(
           ip_address => X"C0A80501", source_port => X"7623",
           destination_port => X"0365", data => (16#17#, 16#37#, 16#57#, 16#73#, 16#F9#));
       elsif run("Test that UDP and non-UDP packets can be mixed") then
+        test_that_packet_can_be_received(
+          ip_address => X"C0A80501", source_port => X"1498",
+          destination_port => X"8724", data => (16#41#, 16#45#, 16#49#));
         test_that_packet_can_be_received(
           ip_address => X"C0A80501", source_port => X"7623",
           destination_port => X"0365", data => (16#17#, 16#37#, 16#57#, 16#73#, 16#F9#),
