@@ -30,6 +30,7 @@ context vunit_lib.vunit_context;
 library IEEE;
 use IEEE.STD_LOGIC_1164.all;
 use IEEE.NUMERIC_STD.all;
+use ieee.numeric_std_unsigned.all;
 use work.axi.all;
 use work.ipv4_types.all;
 
@@ -125,198 +126,84 @@ begin
       assert udp_rxo.data.data_in_last = '0' report "udp_rxo.data.data_in_last not initialised correctly on reset";
     end;
 
-    procedure test_that_one_packet_can_be_received is
+    procedure test_that_packet_can_be_received (
+      constant ip_address : std_logic_vector(31 downto 0);
+      constant source_port : std_logic_vector(15 downto 0);
+      constant destination_port : std_logic_vector(15 downto 0);
+      constant data : integer_vector;
+      constant is_udp : boolean := true
+      ) is
+      constant data_length : std_logic_vector(15 downto 0) := to_slv(8 + data'length, 16);
+      constant data_i : integer_vector(1 to data'length) := data;
     begin
-      report "T1: Send an ip frame with IP src ip_address c0a80501, udp protocol from port x1498 to port x8724 and 3 bytes data";
+      report "Send an ip frame with IP src ip_address c0a80501, udp protocol from port x1498 to port x8724 and 3 bytes data";
       ip_rx_start              <= '1';
       ip_rx.data.data_in_valid <= '0';
       ip_rx.data.data_in_last  <= '0';
       ip_rx.hdr.is_valid       <= '1';
-      ip_rx.hdr.protocol       <= x"11";                       -- UDP
-      ip_rx.hdr.data_length    <= x"000b";
-      ip_rx.hdr.src_ip_addr    <= x"c0a80501";
+      if is_udp then
+        ip_rx.hdr.protocol       <= x"11";                       -- UDP
+      else
+        ip_rx.hdr.protocol       <= x"12";                       -- non-UDP
+      end if;
+      ip_rx.hdr.data_length    <= data_length;
+      ip_rx.hdr.src_ip_addr    <= ip_address;
       wait for clk_period*3;
       -- now send the data
       ip_rx.data.data_in_valid <= '1';
-      ip_rx.data.data_in       <= x"14"; wait for clk_period;  -- src port
-      ip_rx.data.data_in       <= x"98"; wait for clk_period;
-      ip_rx.data.data_in       <= x"87"; wait for clk_period;  -- dst port
-      ip_rx.data.data_in       <= x"24"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- len (hdr + data)
-      ip_rx.data.data_in       <= x"0b"; wait for clk_period;
+      ip_rx.data.data_in       <= source_port(15 downto 8); wait for clk_period;  -- src port
+      ip_rx.data.data_in       <= source_port(7 downto 0); wait for clk_period;
+      ip_rx.data.data_in       <= destination_port(15 downto 8); wait for clk_period;  -- dst port
+      ip_rx.data.data_in       <= destination_port(7 downto 0); wait for clk_period;
+      ip_rx.data.data_in       <= data_length(15 downto 8); wait for clk_period;  -- len (hdr + data)
+      ip_rx.data.data_in       <= data_length(7 downto 0); wait for clk_period;
       ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- mty cks
       ip_rx.data.data_in       <= x"00"; wait for clk_period;
       -- udp hdr should be valid
-      assert udp_rxo.hdr.is_valid = '1' report "T1: udp_rxo.hdr.is_valid not set";
+      if is_udp then
+        assert udp_rxo.hdr.is_valid = '1' report "udp_rxo.hdr.is_valid not set";
+      else
+        assert udp_rxo.hdr.is_valid = '0' report "udp_rxo.hdr.is_valid set";
+      end if;
 
-      ip_rx.data.data_in <= x"41"; wait for clk_period;  -- data
+      ip_rx.data.data_in <= to_slv(data_i(1), 8); wait for clk_period;  -- data
 
-      assert udp_rxo.hdr.src_ip_addr = x"c0a80501" report "T1: udp_rxo.hdr.src_ip_addr not set correctly";
-      assert udp_rxo.hdr.src_port = x"1498" report "T1: udp_rxo.hdr.src_port not set correctly";
-      assert udp_rxo.hdr.dst_port = x"8724" report "T1: udp_rxo.hdr.dst_port not set correctly";
-      assert udp_rxo.hdr.data_length = x"0003" report "T1: udp_rxo.hdr.data_length not set correctly";
-      assert udp_rx_start = '1' report "T1: udp_rx_start not set";
-      assert udp_rxo.data.data_in_valid = '1' report "T1: udp_rxo.data.data_in_valid not set";
+      if is_udp then
+        assert udp_rxo.hdr.src_ip_addr = ip_address report "udp_rxo.hdr.src_ip_addr not set correctly";
+        assert udp_rxo.hdr.src_port = source_port report "udp_rxo.hdr.src_port not set correctly";
+        assert udp_rxo.hdr.dst_port = destination_port report "udp_rxo.hdr.dst_port not set correctly";
+        assert udp_rxo.hdr.data_length = to_slv(data_i'length, 16) report "udp_rxo.hdr.data_length not set correctly";
+        assert udp_rx_start = '1' report "udp_rx_start not set";
+        assert udp_rxo.data.data_in_valid = '1' report "udp_rxo.data.data_in_valid not set";
+      else
+        assert udp_rx_start = '0' report "udp_rx_start set";
+        assert udp_rxo.data.data_in_valid = '0' report "udp_rxo.data.data_in_valid set";
+      end if;
 
-      ip_rx.data.data_in       <= x"45"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"49"; ip_rx.data.data_in_last <= '1'; wait for clk_period;
-      assert udp_rxo.data.data_in_last = '1' report "T1: udp_rxo.data.data_in_last not set";
+      for i in 2 to data_i'right - 1 loop
+        ip_rx.data.data_in <= to_slv(data_i(i), 8); wait for clk_period;  -- data
+      end loop;
+      ip_rx.data.data_in <= to_slv(data_i(data_i'right), 8);
+      ip_rx.data.data_in_last <= '1'; wait for clk_period;
+
+      if is_udp then
+        assert udp_rxo.data.data_in_last = '1' report "udp_rxo.data.data_in_last not set";
+      else
+        assert udp_rxo.data.data_in_last = '0' report "udp_rxo.data.data_in_last set";
+      end if;
+
       ip_rx_start              <= '0';
       ip_rx.data.data_in_valid <= '0';
       ip_rx.data.data_in_last  <= '0';
       ip_rx.hdr.is_valid       <= '0';
       wait for clk_period;
-      assert udp_rxo.data.data_in = x"00" report "T1: udp_rxo.data.data_in not cleared";
-      assert udp_rxo.data.data_in_valid = '0' report "T1: udp_rxo.data.data_in_valid not cleared";
-      assert udp_rxo.data.data_in_last = '0' report "T1: udp_rxo.data.data_in_last not cleared";
+      assert udp_rxo.data.data_in = x"00" report "udp_rxo.data.data_in not cleared";
+      assert udp_rxo.data.data_in_valid = '0' report "udp_rxo.data.data_in_valid not cleared";
+      assert udp_rxo.data.data_in_last = '0' report "udp_rxo.data.data_in_last not cleared";
 
       wait for clk_period;
     end;
 
-    procedure test_that_second_packet_can_be_received is
-    begin
-      report "T2: Send an ip frame with IP src ip_address c0a80501, udp protocol from port x7623 to port x0365 and 5 bytes data";
-
-      ip_rx_start              <= '1';
-      ip_rx.data.data_in_valid <= '0';
-      ip_rx.data.data_in_last  <= '0';
-      ip_rx.hdr.is_valid       <= '1';
-      ip_rx.hdr.protocol       <= x"11";                       -- UDP
-      ip_rx.hdr.data_length    <= x"000b";
-      ip_rx.hdr.src_ip_addr    <= x"c0a80501";
-      wait for clk_period*3;
-      -- now send the data
-      ip_rx.data.data_in_valid <= '1';
-      ip_rx.data.data_in       <= x"76"; wait for clk_period;  -- src port
-      ip_rx.data.data_in       <= x"23"; wait for clk_period;
-      ip_rx.data.data_in       <= x"03"; wait for clk_period;  -- dst port
-      ip_rx.data.data_in       <= x"65"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- len (hdr + data)
-      ip_rx.data.data_in       <= x"0d"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- mty cks
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;
-      -- udp hdr should be valid
-      assert udp_rxo.hdr.is_valid = '1' report "T2: udp_rxo.hdr.is_valid not set";
-
-      ip_rx.data.data_in <= x"17"; wait for clk_period;  -- data
-
-      assert udp_rxo.hdr.src_ip_addr = x"c0a80501" report "T2: udp_rxo.hdr.src_ip_addr not set correctly";
-      assert udp_rxo.hdr.src_port = x"7623" report "T2: udp_rxo.hdr.src_port not set correctly";
-      assert udp_rxo.hdr.dst_port = x"0365" report "T2: udp_rxo.hdr.dst_port not set correctly";
-      assert udp_rxo.hdr.data_length = x"0005" report "T2: udp_rxo.hdr.data_length not set correctly";
-      assert udp_rx_start = '1' report "T2: udp_rx_start not set";
-      assert udp_rxo.data.data_in_valid = '1' report "T2: udp_rxo.data.data_in_valid not set";
-
-      ip_rx.data.data_in       <= x"37"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"57"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"73"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"f9"; ip_rx.data.data_in_last <= '1'; wait for clk_period;
-      assert udp_rxo.data.data_in_last = '1' report "T2: udp_rxo.data.data_in_last not set";
-      ip_rx_start              <= '0';
-      ip_rx.data.data_in_valid <= '0';
-      ip_rx.data.data_in_last  <= '0';
-      ip_rx.hdr.is_valid       <= '0';
-      wait for clk_period;
-      assert udp_rxo.data.data_in = x"00" report "T2: udp_rxo.data.data_in not cleared";
-      assert udp_rxo.data.data_in_valid = '0' report "T2: udp_rxo.data.data_in_valid not cleared";
-      assert udp_rxo.data.data_in_last = '0' report "T2: udp_rxo.data.data_in_last not cleared";
-    end;
-
-    procedure test_that_non_udp_packets_are_rejected is
-    begin
-      report "T3: Send an ip frame with IP src ip_address c0a80501, protocol x12 from port x7623 to port x0365 and 5 bytes data";
-
-      ip_rx_start              <= '1';
-      ip_rx.data.data_in_valid <= '0';
-      ip_rx.data.data_in_last  <= '0';
-      ip_rx.hdr.is_valid       <= '1';
-      ip_rx.hdr.protocol       <= x"12";                       -- non-UDP
-      ip_rx.hdr.data_length    <= x"000b";
-      ip_rx.hdr.src_ip_addr    <= x"c0a80501";
-      wait for clk_period*3;
-      -- now send the data
-      ip_rx.data.data_in_valid <= '1';
-      ip_rx.data.data_in       <= x"76"; wait for clk_period;  -- src port
-      ip_rx.data.data_in       <= x"23"; wait for clk_period;
-      ip_rx.data.data_in       <= x"03"; wait for clk_period;  -- dst port
-      ip_rx.data.data_in       <= x"65"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- len (hdr + data)
-      ip_rx.data.data_in       <= x"0d"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- mty cks
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;
-      -- udp hdr should be valid
-      assert udp_rxo.hdr.is_valid = '0' report "T3: udp_rxo.hdr.is_valid incorrectly set";
-
-      ip_rx.data.data_in <= x"17"; wait for clk_period;  -- data
-
-      assert udp_rx_start = '0' report "T3: udp_rx_start incorrectly set";
-      assert udp_rxo.data.data_in_valid = '0' report "T3: udp_rxo.data.data_in_valid not set";
-
-      ip_rx.data.data_in       <= x"37"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"57"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"73"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"f9"; ip_rx.data.data_in_last <= '1'; wait for clk_period;
-      assert udp_rxo.data.data_in_last = '0' report "T3: udp_rxo.data.data_in_last incorrectly set";
-      ip_rx_start              <= '0';
-      ip_rx.data.data_in_valid <= '0';
-      ip_rx.data.data_in_last  <= '0';
-      ip_rx.hdr.is_valid       <= '0';
-      wait for clk_period;
-      assert udp_rxo.data.data_in = x"00" report "T3: udp_rxo.data.data_in not cleared";
-      assert udp_rxo.data.data_in_valid = '0' report "T3: udp_rxo.data.data_in_valid not cleared";
-      assert udp_rxo.data.data_in_last = '0' report "T3: udp_rxo.data.data_in_last not cleared";
-
-      wait for clk_period;
-    end;
-
-    procedure test_that_a_udp_packet_can_be_received_after_a_non_udp_packet is
-    begin
-      report "T4: Send an ip frame with IP src ip_address c0a80501, udp protocol from port x1498 to port x8724 and 3 bytes data";
-
-      ip_rx_start              <= '1';
-      ip_rx.data.data_in_valid <= '0';
-      ip_rx.data.data_in_last  <= '0';
-      ip_rx.hdr.is_valid       <= '1';
-      ip_rx.hdr.protocol       <= x"11";                       -- UDP
-      ip_rx.hdr.data_length    <= x"000b";
-      ip_rx.hdr.src_ip_addr    <= x"c0a80501";
-      wait for clk_period*3;
-      -- now send the data
-      ip_rx.data.data_in_valid <= '1';
-      ip_rx.data.data_in       <= x"14"; wait for clk_period;  -- src port
-      ip_rx.data.data_in       <= x"98"; wait for clk_period;
-      ip_rx.data.data_in       <= x"87"; wait for clk_period;  -- dst port
-      ip_rx.data.data_in       <= x"24"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- len (hdr + data)
-      ip_rx.data.data_in       <= x"0b"; wait for clk_period;
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;  -- mty cks
-      ip_rx.data.data_in       <= x"00"; wait for clk_period;
-      -- udp hdr should be valid
-      assert udp_rxo.hdr.is_valid = '1' report "T4: udp_rxo.hdr.is_valid not set";
-
-      ip_rx.data.data_in <= x"41"; wait for clk_period;  -- data
-
-      assert udp_rxo.hdr.src_ip_addr = x"c0a80501" report "T4: udp_rxo.hdr.src_ip_addr not set correctly";
-      assert udp_rxo.hdr.src_port = x"1498" report "T4: udp_rxo.hdr.src_port not set correctly";
-      assert udp_rxo.hdr.dst_port = x"8724" report "T4: udp_rxo.hdr.dst_port not set correctly";
-      assert udp_rxo.hdr.data_length = x"0003" report "T4: udp_rxo.hdr.data_length not set correctly";
-      assert udp_rx_start = '1' report "T4: udp_rx_start not set";
-      assert udp_rxo.data.data_in_valid = '1' report "T4: udp_rxo.data.data_in_valid not set";
-
-      ip_rx.data.data_in       <= x"45"; wait for clk_period;  -- data
-      ip_rx.data.data_in       <= x"49"; ip_rx.data.data_in_last <= '1'; wait for clk_period;
-      assert udp_rxo.data.data_in_last = '1' report "T4: udp_rxo.data.data_in_last not set";
-      ip_rx_start              <= '0';
-      ip_rx.data.data_in_valid <= '0';
-      ip_rx.data.data_in_last  <= '0';
-      ip_rx.hdr.is_valid       <= '0';
-      wait for clk_period;
-      assert udp_rxo.data.data_in = x"00" report "T4: udp_rxo.data.data_in not cleared";
-      assert udp_rxo.data.data_in_valid = '0' report "T4: udp_rxo.data.data_in_valid not cleared";
-      assert udp_rxo.data.data_in_last = '0' report "T4: udp_rxo.data.data_in_last not cleared";
-
-      wait for clk_period;
-    end;
   begin
     test_runner_setup(runner, runner_cfg);
 
@@ -325,12 +212,21 @@ begin
         reset_uut;
         test_reset_conditions;
       elsif run("Test that one packet can be received") then
-        test_that_one_packet_can_be_received;
+        test_that_packet_can_be_received(
+          ip_address => X"C0A80501", source_port => X"1498",
+          destination_port => X"8724", data => (16#41#, 16#45#, 16#49#));
       elsif run("Test that many packets can be received") then
-        test_that_second_packet_can_be_received;
+        test_that_packet_can_be_received(
+          ip_address => X"C0A80501", source_port => X"7623",
+          destination_port => X"0365", data => (16#17#, 16#37#, 16#57#, 16#73#, 16#F9#));
       elsif run("Test that UDP and non-UDP packets can be mixed") then
-        test_that_non_udp_packets_are_rejected;
-        test_that_a_udp_packet_can_be_received_after_a_non_udp_packet;
+        test_that_packet_can_be_received(
+          ip_address => X"C0A80501", source_port => X"7623",
+          destination_port => X"0365", data => (16#17#, 16#37#, 16#57#, 16#73#, 16#F9#),
+          is_udp => false);
+        test_that_packet_can_be_received(
+          ip_address => X"C0A80501", source_port => X"1498",
+          destination_port => X"8724", data => (16#41#, 16#45#, 16#49#));
       end if;
     end loop;
 
