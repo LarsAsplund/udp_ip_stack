@@ -175,6 +175,8 @@ begin
         assert udp_rxo.hdr.data_length = to_slv(data_i'length, 16) report "udp_rxo.hdr.data_length not set correctly";
         assert udp_rx_start = '1' report "udp_rx_start not set";
         assert udp_rxo.data.data_in_valid = '1' report "udp_rxo.data.data_in_valid not set";
+        enable_pass_msg;
+        check_equal(udp_rxo.data.data_in_valid, '1', result("for udp_rxo.data.data_in_valid"));
       else
         assert udp_rx_start = '0' report "udp_rx_start set";
         assert udp_rxo.data.data_in_valid = '0' report "udp_rxo.data.data_in_valid set";
@@ -236,7 +238,6 @@ begin
       end if;
     end loop;
 
-    report "--- end of tests ---";
     test_runner_cleanup(runner);
     wait;
   end process;
