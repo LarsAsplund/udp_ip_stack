@@ -1,1 +1,1 @@
-https://github.com/VUnit/vunit
+git+git://github.com/VUnit/vunit@master#egg=vunit
