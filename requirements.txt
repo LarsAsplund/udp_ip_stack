@@ -1,2 +1,1 @@
 https://github.com/VUnit/vunit/archive/master.zip
-vunit_hdl
