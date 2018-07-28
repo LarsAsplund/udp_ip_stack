@@ -1,1 +1,1 @@
-VUnit/vunit
+https://github.com/VUnit/vunit
